@@ -1,6 +1,5 @@
 package hu.metainf.jiracsvuploader.process;
 
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -9,8 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import hu.metainf.jiracsvuploader.stat.StatData;
-import hu.metainf.jiracsvuploader.util.CustomBlockingQueue;
-import hu.metainf.jiracsvuploader.util.PropTypes;
+import hu.metainf.jiracsvuploader.util.CustomLinkedBlockingQueue;
+import hu.metainf.jiracsvuploader.util.StatTypeKeys;
 
 /**
  * Processes the lines of a CSV file.
@@ -19,8 +18,8 @@ import hu.metainf.jiracsvuploader.util.PropTypes;
 public class CsvLineProcessor {
     /** {@link Logger} instance. */
     private final Logger logger = LoggerFactory.getLogger(CsvLineProcessor.class);
-    /** {@link ExecutorService} instance. */
-    private final ExecutorService executorService;
+    /** {@link ThreadPoolExecutor} instance. */
+    private final ThreadPoolExecutor executorService;
     /** Array of header values in the order it is in the originating CSV file. */
     private String[] headers;
 
@@ -31,8 +30,9 @@ public class CsvLineProcessor {
      *            Number of parallel threads
      */
     public CsvLineProcessor(final int threadNr) {
+        logger.debug("Creating background worker thread pool with {} thread(s)", threadNr);
         executorService = new ThreadPoolExecutor(threadNr, threadNr, 0L, TimeUnit.MILLISECONDS,
-                new CustomBlockingQueue());
+                new CustomLinkedBlockingQueue());
     }
 
     /**
@@ -45,6 +45,7 @@ public class CsvLineProcessor {
         if (headerRow != null) {
             headers = headerRow.split(",");
         }
+        logger.debug("Set JSON property headers based on CSV header data: {}", headers);
     }
 
     /**
@@ -61,9 +62,13 @@ public class CsvLineProcessor {
      *             pool
      */
     public void shutdown() throws InterruptedException {
+        logger.debug("Initiating background worker thread pool shutdown");
         executorService.shutdown();
         boolean isFinished = false;
         while (!isFinished) {
+            logger.debug(
+                    "Backgroung worker thread pool shutdown is in progress, has {} remaining tasks",
+                    executorService.getQueue().size());
             isFinished = executorService.awaitTermination(TERMINATION_AWAIT_TIME_VALUE,
                     TimeUnit.SECONDS);
         }
@@ -76,6 +81,7 @@ public class CsvLineProcessor {
      *            CSV line value
      */
     public void add4Task(final String csvLine) {
+        logger.debug("Adding CSV line for background processing and uploading: {}", csvLine);
         executorService.submit(new JiraTaskUploader(csvLine));
     }
 
@@ -84,6 +90,8 @@ public class CsvLineProcessor {
      *
      */
     private class JiraTaskUploader implements Runnable {
+        /** {@link Logger} instance. */
+        private final Logger taskLogger = LoggerFactory.getLogger(JiraTaskUploader.class);
         /** CSV line to be processed. */
         private final String csvLine;
         /** Status code for successful response. */
@@ -107,28 +115,32 @@ public class CsvLineProcessor {
         @Override
         public void run() {
             final long startTime = System.currentTimeMillis();
-            logger.debug("Transforming CSV line to Jira JSON data: {}", csvLine);
+            taskLogger.debug("Transforming CSV line to Jira JSON data: {}", csvLine);
             final String[] csvLineSplit = csvLine.split(",");
             final JSONObject jsonObject = new JSONObject();
             for (int i = 0; i < headers.length; i++) {
                 jsonObject.append(headers[i], csvLineSplit[i]);
             }
+            taskLogger.debug("Created JSON object from CSV line: {}", jsonObject);
             int statusCode;
             try {
                 statusCode = performJsonUpload(jsonObject);
             } catch (final InterruptedException e) {
+                logger.warn("Processing of a Jira JSON upload task was interrupted: {}",
+                        e.getMessage());
                 statusCode = STATUS_CODE_ERROR;
             }
-            logger.info("Response status code received from Jira instance: {}", statusCode);
+            taskLogger.info("JSON upload response status code received from Jira instance: {}",
+                    statusCode);
             if (statusCode == STATUS_CODE_SUCCESS) {
-                StatData.addIncrementedValue(PropTypes.UPLOADED_ROW_NR);
+                StatData.addIncrementedValue(StatTypeKeys.UPLOADED_ROW_NR);
             } else {
-                StatData.addIncrementedValue(PropTypes.FAILED_ROW_UPLOAD_NR);
+                StatData.addIncrementedValue(StatTypeKeys.FAILED_ROW_UPLOAD_NR);
             }
             final long execTime = System.currentTimeMillis() - startTime;
-            StatData.setMinValue(PropTypes.MIN_EXEC_TIME, execTime);
-            StatData.setMaxValue(PropTypes.MAX_EXEC_TIME, execTime);
-            StatData.setAverageValue(PropTypes.AVG_EXEC_TIME, execTime);
+            StatData.setMinValue(StatTypeKeys.MIN_EXEC_TIME, execTime);
+            StatData.setMaxValue(StatTypeKeys.MAX_EXEC_TIME, execTime);
+            StatData.setAverageValue(StatTypeKeys.AVG_EXEC_TIME, execTime);
         }
 
         /**
@@ -141,7 +153,7 @@ public class CsvLineProcessor {
          *             If the processing is interrupted.
          */
         private int performJsonUpload(final JSONObject jsonObject) throws InterruptedException {
-            logger.info("Sending JSON to Jira instance: {}", jsonObject.toString());
+            taskLogger.info("Sending JSON to Jira instance: {}", jsonObject.toString());
             Thread.sleep(generateSleepValue());
             final int statusCode = getResponseStatusCode();
             return statusCode;

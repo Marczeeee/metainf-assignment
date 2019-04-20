@@ -11,11 +11,11 @@ import hu.metainf.jiracsvuploader.stat.StatData;
  * the queue.
  *
  */
-public class CustomBlockingQueue extends LinkedBlockingQueue<Runnable> {
+public class CustomLinkedBlockingQueue extends LinkedBlockingQueue<Runnable> {
     /**
      * Serial version UID.
      */
-    private static final long serialVersionUID = 6451537602473508L;
+    private static final long serialVersionUID = -3573032047260897279L;
     /**
      * {@link Map} holding task queuing times.
      */
@@ -36,7 +36,7 @@ public class CustomBlockingQueue extends LinkedBlockingQueue<Runnable> {
         if (runnable != null && taskWaitMap.containsKey(runnable)) {
             final Long taskWaitStart = taskWaitMap.remove(runnable);
             final Long queueTime = System.currentTimeMillis() - taskWaitStart;
-            StatData.addSumValue(PropTypes.TOTAL_QUEUE_TIME, queueTime);
+            StatData.addSumValue(StatTypeKeys.TOTAL_QUEUE_TIME, queueTime);
         }
         return runnable;
     }

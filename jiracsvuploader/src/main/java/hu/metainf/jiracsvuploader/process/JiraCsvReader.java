@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import hu.metainf.jiracsvuploader.stat.StatData;
-import hu.metainf.jiracsvuploader.util.PropTypes;
+import hu.metainf.jiracsvuploader.util.StatTypeKeys;
 
 /**
  * Class reading a CSV input file, checking the lines read and forwarding data for processing.
@@ -49,14 +49,14 @@ public class JiraCsvReader {
             logger.debug("Set header row in CSV line processor: {}", headerRow);
             while (scanner.hasNextLine()) {
                 String csvLine = scanner.nextLine();
-                StatData.addIncrementedValue(PropTypes.PROCESSED_ROW_NR);
+                StatData.addIncrementedValue(StatTypeKeys.PROCESSED_ROW_NR);
                 while (!csvLine.matches(recordPattern) && scanner.hasNextLine()) {
                     final String nextCsvLine = scanner.nextLine();
                     csvLine = csvLine.concat(nextCsvLine);
                 }
                 logger.debug("Read complete line from CSV: {}", csvLine);
                 if (isRecordMatchingRegex(csvLine, lineRegex)) {
-                    logger.debug("Forwarding CSV line for processing ({})", csvLine);
+                    logger.debug("Send CSV line for processing ({})", csvLine);
                     csvRecordProcessor.add4Task(csvLine);
                 }
             }
@@ -78,6 +78,8 @@ public class JiraCsvReader {
      *         was given, <code>false</code> if the regular expression wasn't matched.
      */
     private boolean isRecordMatchingRegex(final String csvLine, final String lineRegex) {
+        logger.debug("Checking if regex given ({}) is matched by any part of CSV line: {}",
+                lineRegex, csvLine);
         boolean hasMatch = false;
         if (lineRegex != null && !lineRegex.isEmpty()) {
             final StringTokenizer tokenizer = new StringTokenizer(csvLine, ",");

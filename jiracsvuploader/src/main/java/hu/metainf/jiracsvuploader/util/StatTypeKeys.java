@@ -1,12 +1,12 @@
 package hu.metainf.jiracsvuploader.util;
 
 /**
- * Utility class holding property type identifier values.
+ * Utility class holding statistics type key identifier values.
  *
  */
-public final class PropTypes {
+public final class StatTypeKeys {
     /** Ctor. */
-    private PropTypes() {}
+    private StatTypeKeys() {}
 
     /** Property identifier for application start timestamp value. */
     public static final String APP_START_TIMESTAMP = "app.start.timestamp";

@@ -15,7 +15,7 @@ import hu.metainf.jiracsvuploader.process.CsvLineProcessor;
 import hu.metainf.jiracsvuploader.process.JiraCsvReader;
 import hu.metainf.jiracsvuploader.stat.StatData;
 import hu.metainf.jiracsvuploader.stat.StatPrinter;
-import hu.metainf.jiracsvuploader.util.PropTypes;
+import hu.metainf.jiracsvuploader.util.StatTypeKeys;
 
 /**
  * Application main class.
@@ -35,27 +35,29 @@ public final class AppMain {
      *            command line arguments array
      */
     public static void main(final String[] args) {
-        LOGGER.info("Jira CSV Processor app is starting");
-        StatData.addValue(PropTypes.APP_START_TIMESTAMP, new Date().getTime());
+        LOGGER.info("Jira CSV Uploader application is starting");
+        StatData.addValue(StatTypeKeys.APP_START_TIMESTAMP, new Date().getTime());
 
         final CommandLine cmd = AppMain.parseCmdArgs(args);
         final String csvFilePath = cmd.getOptionValue("f");
         final int threadNr = Integer.parseInt(cmd.getOptionValue("t"));
         final String lineRegex = cmd.getOptionValue("r");
-        LOGGER.debug("Starting CSV record processing");
+        LOGGER.debug("Start Jira CSV record processing");
         final CsvLineProcessor csvRecordProcessor = new CsvLineProcessor(threadNr);
         new JiraCsvReader().doJiraCSVProcessing(csvFilePath, lineRegex, csvRecordProcessor);
-        StatData.addValue(PropTypes.APP_END_TIMESTAMP, new Date().getTime());
+        LOGGER.info("JIRA CSV Uploader application finished CSV data processing");
+        StatData.addValue(StatTypeKeys.APP_END_TIMESTAMP, new Date().getTime());
         try {
+            LOGGER.debug("Initiating worker thread pool shutdown, waiting for tasks to complete");
             csvRecordProcessor.shutdown();
         } catch (final InterruptedException e) {
             LOGGER.warn("Background worker thread pool shutdown waiting was interrupted: {}",
                     e.getMessage());
         }
-        LOGGER.info("JIRA CSV Processor app finished data processing and uploading");
+        LOGGER.info("JIRA CSV Uploader application finished CSV data uploading");
         LOGGER.debug("Start printing statistical information");
         new StatPrinter().printAppStats();
-        LOGGER.debug("Application ending");
+        LOGGER.debug("JIRA CSV Uploader application exiting");
     }
 
     /** Exit code used when exiting with an error. */
