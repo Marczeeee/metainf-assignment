@@ -27,3 +27,26 @@ Elegendő, ha a valódi HTTP kérés helyett egy mock Java metódus van (azaz a 
 # Első feladat - Szállítandó
 
 Egy Java standalone alkalmazás, amely Java 8/9 nyelvi elemeket használ, önállóan futtatható és Mavennel buildelhető
+
+# Második feladat - Tervezés
+
+Adott egy alkalmazás, amely az adatbázisban tárolt IMAP postafiókokból rendszeres időközönként letölti az új emaileket.
+A különböző postafiókok feldolgozása teljesen eltérő ideig tarthat. A letöltés (job) folyamat 4 lépésből áll, mindegyik lépés akár néhány percig eltarthat:
+
+    - belépés a postafiókba
+    - levelek listájának letöltése
+    - minden egyes levél letöltése egyesével (minden levélnek egyedi ID-ja van)
+    - kilépés a fiókból, kapcsolat lezárása
+
+Az alkalmazásnak párhuzamosan több gépen (node), elosztottan kell működnie, minden gépen több szálon folyik a feldolgozás.
+
+A cél egy olyan rendszer leírása (szükséges technológiák, megközelítések, algoritmusok megnevezésével), amely az alábbi követelményeknek felel meg:
+
+    - garantálja, hogy egy fiók egy időpontban csak egy helyen kerül feldolgozásra
+    - képes kezelni, ha egy node kiesik, azaz a kieséskor éppen ott feldolgozott fiókok ismételten feldolgozásra kerülnek a későbbiekben
+    - garantálja, hogy a fenti kiesés esetében is a már letöltött leveleket nem töltse le újra
+    - biztosítja, hogy a legrégebben feldolgozott fiókok kerüljenek lekorábban feldolgozásra, azaz az összes fiókot tekintve ne legyen olyan, amely sose kerül feldolgozásra, ne kerüljön sor kiéheztetésre
+
+# Második feladat - Szállítandó
+
+Részletes megoldási javaslat (szövegszerű leírás és/vagy architektúra rajz), mely tartalmazza a felhasználni kívánt eszközöket, algoritmusokat, tételesen leírva, hogy hogyan teljesítené a rendszer a fenti 4 követelmény mindegyikékét.
